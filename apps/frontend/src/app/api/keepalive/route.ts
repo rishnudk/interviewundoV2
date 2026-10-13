@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 
 // GET /api/keepalive — pings Next.js frontend AND triggers Express backend keepalive
 export async function GET() {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+  const backendUrl =
+    process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
   let backendStatus = 'unreachable';
   let backendDetails = null;

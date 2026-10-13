@@ -72,7 +72,8 @@ export default function CommunityTestimonials({
   }, [activeSlides]);
 
   React.useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const apiUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:4000';
 
     // Fetch stats user count and real testimonials simultaneously
     Promise.all([

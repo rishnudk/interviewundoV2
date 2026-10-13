@@ -36,7 +36,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // • On first sign-in: `account` and `profile` are populated → call backend
     // • On subsequent reads: only `token` is available → check expiry + refresh
     async jwt({ token, account, profile, user }) {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+      const backendUrl =
+        process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
       // ── FIRST SIGN-IN ────────────────────────────────────────────────────
       if (account && profile) {

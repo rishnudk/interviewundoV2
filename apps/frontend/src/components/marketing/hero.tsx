@@ -10,7 +10,8 @@ async function getPublicStats(): Promise<{
   recentUsers?: { name: string; image: string | null }[];
 }> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const apiUrl =
+      process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
     const res = await fetch(`${apiUrl}/api/stats/public`, {
       next: { revalidate: 60 },
     });

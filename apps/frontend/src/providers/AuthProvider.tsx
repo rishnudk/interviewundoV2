@@ -5,7 +5,8 @@ import { useSession, signOut } from 'next-auth/react';
 import type { LoginDTO, RegisterDTO, AuthResponseDTO } from '@interviewprep/shared-types';
 
 // ── Constants ───────────────────────────────────────────────────────────────
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:4000';
 // Must match the backend route exactly: POST /api/auth/refreshToken
 const REFRESH_URL = `${BACKEND_URL}/api/auth/refreshToken`;
 

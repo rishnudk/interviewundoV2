@@ -9,7 +9,11 @@ import { useEffect } from 'react';
 // after ~15 minutes of inactivity).
 // ============================================================
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://interviewundo.onrender.com';
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://interviewundo.onrender.com';
 
 const PING_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
 

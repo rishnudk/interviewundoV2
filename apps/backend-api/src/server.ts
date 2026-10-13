@@ -21,7 +21,7 @@ const server = app.listen(env.PORT, () => {
 // --- Initialize Socket.io Server ---
 const io = new SocketIOServer(server, {
   cors: {
-    origin: env.CORS_ORIGINS.split(','),
+    origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
     credentials: true,
   },
 });

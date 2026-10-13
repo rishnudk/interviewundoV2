@@ -26,7 +26,7 @@ app.use(helmet());
 app.use(rateLimiter);
 app.use(
   cors({
-    origin: env.CORS_ORIGINS.split(','),
+    origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
     credentials: true,
   }),
 );

@@ -81,7 +81,8 @@ function Component({
   React.useEffect(() => {
     if (initialCount !== undefined && initialCount !== null && recentUsers !== undefined) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const apiUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:4000';
     fetch(`${apiUrl}/api/stats/public`)
       .then((res) => res.json())
       .then((data) => {
