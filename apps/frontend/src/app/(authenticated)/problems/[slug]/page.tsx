@@ -141,78 +141,12 @@ export default function ProblemWorkspacePage() {
     }
   }, [problem]);
 
-  const handleSubmitCode = useCallback(async () => {
-    if (!problem?.id) return;
-    setIsSubmitting(true);
-    setConsoleTab('result');
-    setConsoleOutput({
-      status: 'Queueing',
-      stdout: 'Queueing submission in the judge...',
-    });
-    showInfo('Solution submission queued...');
-
-    try {
-      const result = await apiFetch<{ id: string; status: string }>('/api/submissions', {
-        method: 'POST',
-        body: JSON.stringify({
-          problemId: problem.id,
-          code,
-          language: editorConfig.language,
-        }),
-      });
-
-      setActiveJobId(result.id);
-    } catch (err) {
-      setIsSubmitting(false);
-      const errMsg = err instanceof Error ? err.message : 'Failed to trigger solution submission';
-      setConsoleOutput({
-        status: 'Error',
-        error: errMsg,
-      });
-      showError(errMsg);
-    }
-  }, [problem, code, editorConfig.language, apiFetch, showInfo, showError]);
-
-  // Keyboard Shortcuts (Ctrl+Enter = Submit, Ctrl+S = Save)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleSubmitCode();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        // Inform user that code was saved locally
-        setConsoleTab('result');
-        setConsoleOutput({
-          status: 'Saved',
-          stdout: `Draft saved successfully at ${new Date().toLocaleTimeString()}!`,
-          passed: true,
-        });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [code, handleSubmitCode]);
-
-  const handleResetCode = () => {
-    if (
-      problem?.starterCode &&
-      confirm('Are you sure you want to reset your code to the starter template?')
-    ) {
-      setCode(problem.starterCode);
-    }
-  };
-
   const [showTestimonialModal, setShowTestimonialModal] = useState(false);
 
-  // Listen for real-time WebSocket updates
-  useEffect(() => {
-    if (!socket || !activeJobId) return;
-
-    const handleStatusUpdate = (payload: {
-      submissionId: string;
+  // Common handler to render test case execution outputs
+  const handleStatusUpdate = useCallback(
+    (payload: {
+      submissionId?: string;
       status: string;
       data?: {
         results?: Array<{
@@ -233,8 +167,7 @@ export default function ProblemWorkspacePage() {
       streakMilestone?: number | null;
       runtimePercentile?: number | null;
     }) => {
-      console.log('Received WebSocket submission:status update:', payload);
-      if (payload.submissionId !== activeJobId) return;
+      console.log('Received submission:status update:', payload);
 
       if (payload.status === 'PENDING') {
         setConsoleOutput({
@@ -244,7 +177,7 @@ export default function ProblemWorkspacePage() {
       } else if (payload.status === 'PROCESSING') {
         setConsoleOutput({
           status: 'Processing',
-          stdout: 'Executing test cases inside Docker container...',
+          stdout: 'Executing test cases...',
         });
       } else {
         // Final status reached!
@@ -313,27 +246,22 @@ export default function ProblemWorkspacePage() {
           runtime: payload.data?.runtime,
         });
       }
-    };
+    },
+    [apiFetch, showError, showSuccess],
+  );
 
-    socket.on('submission:status', handleStatusUpdate);
-
-    return () => {
-      socket.off('submission:status', handleStatusUpdate);
-    };
-  }, [socket, activeJobId, showError, showSuccess]);
-
-  const handleRunCode = async () => {
+  const handleSubmitCode = useCallback(async () => {
     if (!problem?.id) return;
-    setIsRunning(true);
+    setIsSubmitting(true);
     setConsoleTab('result');
     setConsoleOutput({
-      status: 'Queueing',
-      stdout: 'Queueing code run in the sandbox...',
+      status: 'Processing',
+      stdout: 'Submitting and testing solution...',
     });
-    showInfo('Code execution queued...');
+    showInfo('Submitting solution...');
 
     try {
-      const result = await apiFetch<{ jobId: string; status: string }>('/api/submissions/run', {
+      const result = await apiFetch<any>('/api/submissions', {
         method: 'POST',
         body: JSON.stringify({
           problemId: problem.id,
@@ -342,7 +270,129 @@ export default function ProblemWorkspacePage() {
         }),
       });
 
-      setActiveJobId(result.jobId);
+      if (result && result.status && result.status !== 'PENDING') {
+        const resData = result.result || result.data?.result;
+        handleStatusUpdate({
+          submissionId: result.id,
+          status: result.status,
+          error: resData?.error,
+          data: {
+            results: resData?.output
+              ? resData.output
+                  .split('\n')
+                  .filter(Boolean)
+                  .map((line: string, i: number) => ({
+                    id: String(i + 1),
+                    passed: result.status === 'ACCEPTED',
+                    actual: line,
+                    expected: 'Expected output',
+                    runtime: resData.runtime || 0,
+                  }))
+              : undefined,
+            passedCases: resData?.passedCases,
+            totalCases: resData?.totalCases,
+            runtime: resData?.runtime,
+          },
+        });
+      } else {
+        setActiveJobId(result.id);
+      }
+    } catch (err) {
+      setIsSubmitting(false);
+      const errMsg = err instanceof Error ? err.message : 'Failed to trigger solution submission';
+      setConsoleOutput({
+        status: 'Error',
+        error: errMsg,
+      });
+      showError(errMsg);
+    }
+  }, [problem, code, editorConfig.language, apiFetch, showInfo, showError, handleStatusUpdate]);
+
+  // Keyboard Shortcuts (Ctrl+Enter = Submit, Ctrl+S = Save)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmitCode();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        // Inform user that code was saved locally
+        setConsoleTab('result');
+        setConsoleOutput({
+          status: 'Saved',
+          stdout: `Draft saved successfully at ${new Date().toLocaleTimeString()}!`,
+          passed: true,
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [code, handleSubmitCode]);
+
+  const handleResetCode = () => {
+    if (
+      problem?.starterCode &&
+      confirm('Are you sure you want to reset your code to the starter template?')
+    ) {
+      setCode(problem.starterCode);
+    }
+  };
+
+  // Listen for real-time WebSocket updates as secondary enhancement
+  useEffect(() => {
+    if (!socket || !activeJobId) return;
+
+    const onStatus = (payload: any) => {
+      if (payload.submissionId === activeJobId) {
+        handleStatusUpdate(payload);
+      }
+    };
+
+    socket.on('submission:status', onStatus);
+
+    return () => {
+      socket.off('submission:status', onStatus);
+    };
+  }, [socket, activeJobId, handleStatusUpdate]);
+
+  const handleRunCode = async () => {
+    if (!problem?.id) return;
+    setIsRunning(true);
+    setConsoleTab('result');
+    setConsoleOutput({
+      status: 'Processing',
+      stdout: 'Executing test cases in sandbox...',
+    });
+    showInfo('Running code...');
+
+    try {
+      const result = await apiFetch<any>('/api/submissions/run', {
+        method: 'POST',
+        body: JSON.stringify({
+          problemId: problem.id,
+          code,
+          language: editorConfig.language,
+        }),
+      });
+
+      if (result && (result.status === 'Finished' || result.results || result.data)) {
+        const payloadData = result.data || result;
+        handleStatusUpdate({
+          submissionId: result.jobId || payloadData.jobId,
+          status: result.status || payloadData.status || 'Finished',
+          error: result.error || payloadData.error,
+          data: {
+            results: result.results || payloadData.results,
+            passedCases: result.passedCases ?? payloadData.passedCases,
+            totalCases: result.totalCases ?? payloadData.totalCases,
+            runtime: result.runtime ?? payloadData.runtime,
+          },
+        });
+      } else {
+        setActiveJobId(result.jobId);
+      }
     } catch (err) {
       setIsRunning(false);
       const errMsg = err instanceof Error ? err.message : 'Failed to trigger playground run';

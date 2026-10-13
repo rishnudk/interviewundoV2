@@ -9,8 +9,8 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
 
-  // Redis
-  REDIS_URL: z.string().url(),
+  // Redis (Optional for free single-instance hosting)
+  REDIS_URL: z.string().optional(),
 
   // JWT
   JWT_ACCESS_SECRET: z.string().min(32),

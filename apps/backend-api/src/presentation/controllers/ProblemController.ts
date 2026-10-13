@@ -38,10 +38,12 @@ export class ProblemController {
       // Fire-and-forget: track active page views in Redis (does NOT block response)
       // For a true count: use INCR + EXPIRE separately
       const activeKey = `problem:active:count:${slug}`;
-      redis
-        .incr(activeKey)
-        .then(() => redis.expire(activeKey, 300))
-        .catch(() => {});
+      if (redis && typeof redis.incr === 'function') {
+        redis
+          .incr(activeKey)
+          .then(() => redis.expire && redis.expire(activeKey, 300))
+          .catch(() => {});
+      }
 
       let isLikedByUser = false;
       if (req.user?.id) {

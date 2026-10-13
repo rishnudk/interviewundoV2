@@ -25,7 +25,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       auth: {
         token: `Bearer ${token}`,
       },
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
     });
 
     socketInstance.on('connect', () => {

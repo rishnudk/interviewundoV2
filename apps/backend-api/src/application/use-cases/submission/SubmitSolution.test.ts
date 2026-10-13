@@ -3,7 +3,7 @@ import { SubmitSolution } from './SubmitSolution';
 import { NotFoundError } from '../../../domain/errors';
 import type { ISubmissionRepository } from '../../../domain/ports/repositories/ISubmissionRepository';
 import type { IProblemRepository } from '../../../domain/ports/repositories/IProblemRepository';
-import type { IQueueService } from '../../../domain/ports/services/IQueueService';
+import type { IExecutionService } from '../../../domain/ports/services/IExecutionService';
 import type { INotificationService } from '../../../domain/ports/services/INotificationService';
 import type {
   Problem,
@@ -15,7 +15,7 @@ import type {
 describe('SubmitSolution Use Case', () => {
   let submissionRepository: ISubmissionRepository;
   let problemRepository: IProblemRepository;
-  let queueService: IQueueService;
+  let executionService: IExecutionService;
   let notificationService: INotificationService;
   let useCase: SubmitSolution;
 
@@ -46,6 +46,11 @@ describe('SubmitSolution Use Case', () => {
     createdAt: new Date(),
   };
 
+  const mockFinishedSubmission: Submission = {
+    ...mockSubmission,
+    status: 'ACCEPTED' as SubmissionStatus,
+  };
+
   beforeEach(() => {
     submissionRepository = {
       create: vi.fn(),
@@ -74,9 +79,14 @@ describe('SubmitSolution Use Case', () => {
       incrementAttemptCount: vi.fn(),
     };
 
-    queueService = {
-      enqueueSubmission: vi.fn(),
-      getJobStatus: vi.fn(),
+    executionService = {
+      executeSubmission: vi.fn().mockResolvedValue({
+        passed: true,
+        passedCases: 1,
+        totalCases: 1,
+        results: [],
+      }),
+      executePlayground: vi.fn(),
     };
 
     notificationService = {
@@ -87,12 +97,12 @@ describe('SubmitSolution Use Case', () => {
     useCase = new SubmitSolution(
       submissionRepository,
       problemRepository,
-      queueService,
+      executionService,
       notificationService,
     );
   });
 
-  it('should submit a solution successfully', async () => {
+  it('should submit and execute a solution in-process', async () => {
     const input = {
       problemId: 'problem-123',
       code: 'console.log("hello world");',
@@ -102,7 +112,7 @@ describe('SubmitSolution Use Case', () => {
 
     vi.mocked(problemRepository.findById).mockResolvedValue(mockProblem);
     vi.mocked(submissionRepository.create).mockResolvedValue(mockSubmission);
-    vi.mocked(queueService.enqueueSubmission).mockResolvedValue('job-id-123');
+    vi.mocked(submissionRepository.findById).mockResolvedValue(mockFinishedSubmission);
 
     const result = await useCase.execute(input);
 
@@ -115,11 +125,12 @@ describe('SubmitSolution Use Case', () => {
       status: 'PENDING',
     });
     expect(problemRepository.incrementAttemptCount).toHaveBeenCalledWith(input.problemId);
-    expect(queueService.enqueueSubmission).toHaveBeenCalledWith({
+    expect(executionService.executeSubmission).toHaveBeenCalledWith({
       submissionId: mockSubmission.id,
       userId: input.userId,
       problemId: input.problemId,
       code: input.code,
+      files: undefined,
       language: input.language,
     });
     expect(notificationService.notifyUser).toHaveBeenCalledWith(input.userId, 'submission:status', {
@@ -127,7 +138,7 @@ describe('SubmitSolution Use Case', () => {
       status: 'PENDING',
     });
 
-    expect(result).toEqual(mockSubmission);
+    expect(result).toEqual(mockFinishedSubmission);
   });
 
   it('should throw NotFoundError if problem is not found', async () => {
@@ -148,7 +159,7 @@ describe('SubmitSolution Use Case', () => {
     expect(problemRepository.findById).toHaveBeenCalledWith(input.problemId);
     expect(submissionRepository.create).not.toHaveBeenCalled();
     expect(problemRepository.incrementAttemptCount).not.toHaveBeenCalled();
-    expect(queueService.enqueueSubmission).not.toHaveBeenCalled();
+    expect(executionService.executeSubmission).not.toHaveBeenCalled();
     expect(notificationService.notifyUser).not.toHaveBeenCalled();
   });
 });

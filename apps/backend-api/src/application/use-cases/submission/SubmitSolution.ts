@@ -1,6 +1,6 @@
 import type { IUseCase } from '../../interfaces/IUseCase';
 import type { ISubmissionRepository } from '../../../domain/ports/repositories/ISubmissionRepository';
-import type { IQueueService } from '../../../domain/ports/services/IQueueService';
+import type { IExecutionService } from '../../../domain/ports/services/IExecutionService';
 import type { INotificationService } from '../../../domain/ports/services/INotificationService';
 import type { IProblemRepository } from '../../../domain/ports/repositories/IProblemRepository';
 import type { SubmitSolutionDTO, Submission } from '@interviewprep/shared-types';
@@ -8,7 +8,7 @@ import { NotFoundError } from '../../../domain/errors';
 
 // ============================================================
 // SubmitSolution Use Case
-// Stores submission, enqueues for execution, notifies user
+// Stores submission, executes directly in-process, notifies user
 // ============================================================
 
 interface SubmitSolutionInput extends SubmitSolutionDTO {
@@ -19,18 +19,18 @@ export class SubmitSolution implements IUseCase<SubmitSolutionInput, Submission>
   constructor(
     private readonly submissionRepository: ISubmissionRepository,
     private readonly problemRepository: IProblemRepository,
-    private readonly queueService: IQueueService,
+    private readonly executionService: IExecutionService,
     private readonly notificationService: INotificationService,
   ) {}
 
   async execute(input: SubmitSolutionInput): Promise<Submission> {
-    // Verify problem exists
+    // 1. Verify problem exists
     const problem = await this.problemRepository.findById(input.problemId);
     if (!problem) {
       throw new NotFoundError('Problem', input.problemId);
     }
 
-    // Create submission record
+    // 2. Create submission record in PENDING status
     const submission = await this.submissionRepository.create({
       userId: input.userId,
       problemId: input.problemId,
@@ -39,11 +39,17 @@ export class SubmitSolution implements IUseCase<SubmitSolutionInput, Submission>
       status: 'PENDING',
     });
 
-    // Increment attempt count
+    // 3. Increment attempt count
     await this.problemRepository.incrementAttemptCount(input.problemId);
 
-    // Enqueue for execution
-    await this.queueService.enqueueSubmission({
+    // 4. Notify user that submission is pending
+    this.notificationService.notifyUser(input.userId, 'submission:status', {
+      submissionId: submission.id,
+      status: 'PENDING',
+    });
+
+    // 5. Execute solution directly in-process
+    await this.executionService.executeSubmission({
       submissionId: submission.id,
       userId: input.userId,
       problemId: input.problemId,
@@ -52,12 +58,8 @@ export class SubmitSolution implements IUseCase<SubmitSolutionInput, Submission>
       language: input.language,
     });
 
-    // Notify user that submission is queued
-    this.notificationService.notifyUser(input.userId, 'submission:status', {
-      submissionId: submission.id,
-      status: 'PENDING',
-    });
-
-    return submission;
+    // 6. Fetch and return updated submission record
+    const updated = await this.submissionRepository.findById(submission.id);
+    return updated || submission;
   }
 }

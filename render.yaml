@@ -10,17 +10,18 @@ services:
       - key: PORT
         value: 4000
       - key: DATABASE_URL
-        sync: false # You will need to provide your production database URL in the Render dashboard
-      - key: REDIS_URL
-        sync: false # You will need to provide your production Redis URL in the Render dashboard
+        sync: false # Set to your free Neon.tech PostgreSQL connection string
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        sync: false # Set this to your frontend URL (e.g., https://interviewundo.vercel.app)
+        sync: false # Set to your Vercel frontend URL (e.g. https://interviewundo.vercel.app)
       - key: CORS_ORIGINS
         sync: false # Same as FRONTEND_URL
       - key: AUTH_SHARED_SECRET
         generateValue: true # Render will generate a secure key; copy this key to your frontend's environment variables (AUTH_SHARED_SECRET)
-
+      # Optional: REDIS_URL is NOT required! The backend uses an in-memory cache if omitted.
+      # If you want Redis, use a free Upstash Redis instance (https://upstash.com).
+      # - key: REDIS_URL
+      #   sync: false

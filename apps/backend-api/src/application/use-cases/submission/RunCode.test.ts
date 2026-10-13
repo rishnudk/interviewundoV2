@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RunCode } from './RunCode';
 import { NotFoundError } from '../../../domain/errors';
 import type { IProblemRepository } from '../../../domain/ports/repositories/IProblemRepository';
-import type { IQueueService } from '../../../domain/ports/services/IQueueService';
+import type { IExecutionService } from '../../../domain/ports/services/IExecutionService';
 import type { Problem, Difficulty } from '@interviewprep/shared-types';
 
 describe('RunCode Use Case', () => {
   let problemRepository: IProblemRepository;
-  let queueService: IQueueService;
+  let executionService: IExecutionService;
   let useCase: RunCode;
 
   const mockProblem: Problem = {
@@ -39,12 +39,19 @@ describe('RunCode Use Case', () => {
       incrementAttemptCount: vi.fn(),
     };
 
-    queueService = {
-      enqueueSubmission: vi.fn(),
-      getJobStatus: vi.fn(),
+    executionService = {
+      executePlayground: vi.fn().mockResolvedValue({
+        runId: 'run-123',
+        status: 'Finished',
+        passed: true,
+        passedCases: 1,
+        totalCases: 1,
+        results: [],
+      }),
+      executeSubmission: vi.fn(),
     };
 
-    useCase = new RunCode(problemRepository, queueService);
+    useCase = new RunCode(problemRepository, executionService);
   });
 
   it('should run code successfully in playground mode', async () => {
@@ -56,12 +63,11 @@ describe('RunCode Use Case', () => {
     };
 
     vi.mocked(problemRepository.findById).mockResolvedValue(mockProblem);
-    vi.mocked(queueService.enqueueSubmission).mockResolvedValue('job-id-123');
 
     const result = await useCase.execute(input);
 
     expect(problemRepository.findById).toHaveBeenCalledWith(input.problemId);
-    expect(queueService.enqueueSubmission).toHaveBeenCalledWith(
+    expect(executionService.executePlayground).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: input.userId,
         problemId: input.problemId,
@@ -72,7 +78,8 @@ describe('RunCode Use Case', () => {
 
     // jobId should start with "run-"
     expect(result.jobId).toMatch(/^run-/);
-    expect(result.status).toBe('PENDING');
+    expect(result.status).toBe('Finished');
+    expect(result.passed).toBe(true);
   });
 
   it('should throw NotFoundError if problem is not found', async () => {
@@ -91,6 +98,6 @@ describe('RunCode Use Case', () => {
     );
 
     expect(problemRepository.findById).toHaveBeenCalledWith(input.problemId);
-    expect(queueService.enqueueSubmission).not.toHaveBeenCalled();
+    expect(executionService.executePlayground).not.toHaveBeenCalled();
   });
 });

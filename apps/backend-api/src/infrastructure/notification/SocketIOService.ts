@@ -60,7 +60,7 @@ export class SocketIOService implements INotificationService {
 
   private async startRedisSubscriber(): Promise<void> {
     try {
-      redisSubscriber.on('message', (channel, message) => {
+      redisSubscriber.on('message', (channel: any, message: any) => {
         if (channel === 'submission:updates') {
           try {
             const payload = JSON.parse(message);

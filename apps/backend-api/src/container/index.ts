@@ -15,9 +15,8 @@ import { GrokHintService } from '../infrastructure/ai/GrokHintService';
 import { JoseAuthTokenService } from '../infrastructure/auth/JoseAuthTokenService';
 import { Argon2PasswordService } from '../infrastructure/auth/Argon2PasswordService';
 import { RedisCacheService } from '../infrastructure/cache/RedisCacheService';
-import { BullMQQueueService } from '../infrastructure/queue/BullMQQueueService';
-import { submissionQueue } from '../infrastructure/queue/queues';
 import { socketIOService } from '../infrastructure/notification/SocketIOService';
+import { CodeExecutionService } from '../infrastructure/executor/CodeExecutionService';
 
 // --- Use Cases ---
 import { RegisterUser } from '../application/use-cases/auth/RegisterUser';
@@ -83,12 +82,12 @@ const testimonialRepository = new PrismaTestimonialRepository();
 const authTokenService = new JoseAuthTokenService();
 const passwordService = new Argon2PasswordService();
 const cacheService = new RedisCacheService();
-const queueService = new BullMQQueueService(submissionQueue);
 const hintUsageRepository = new PrismaHintUsageRepository();
 const hintService = new GrokHintService();
 
 // Use real SocketIOService as the notification service
 const notificationService = socketIOService;
+const executionService = new CodeExecutionService(notificationService);
 
 // Step 2: Instantiate use cases with injected dependencies
 const registerUser = new RegisterUser(userRepository, passwordService, authTokenService);
@@ -108,10 +107,10 @@ const toggleProblemLike = new ToggleProblemLike();
 const submitSolution = new SubmitSolution(
   submissionRepository,
   problemRepository,
-  queueService,
+  executionService,
   notificationService,
 );
-const runCode = new RunCode(problemRepository, queueService);
+const runCode = new RunCode(problemRepository, executionService);
 const getSubmissions = new GetSubmissions(submissionRepository);
 const getSubmissionResult = new GetSubmissionResult(submissionRepository);
 const getUserStats = new GetUserStats(submissionRepository, problemRepository, userRepository);
