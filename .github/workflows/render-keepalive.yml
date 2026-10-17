@@ -1,0 +1,23 @@
+name: Keep Render backend awake
+
+on:
+  schedule:
+    # GitHub Actions schedules use UTC.
+    # Runs every 10 minutes.
+    - cron: "*/10 * * * *"
+
+  # Allows you to test it manually from GitHub.
+  workflow_dispatch:
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Render backend
+        run: |
+          curl --fail \
+            --silent \
+            --show-error \
+            --max-time 30 \
+            https://interviewundo.onrender.com/health
